@@ -1,28 +1,37 @@
-import SpriteSheet from './SpriteSheet.js';
-import { loadImage, loadLevel } from './loaders.js';
-
-function drawBackground(background, context, sprites) {
-  background.ranges.forEach(([x1, x2, y1, y2]) => {
-    for (let x = x1; x < x2; ++x) {
-      for (let y = y1; y < y2; ++y) {
-        sprites.drawTile(background.tile, context, x, y);
-      }
-    }
-  });
-}
-
+import { loadLevel } from './loaders.js';
+import { loadBackgroundSprites } from './sprites.js';
+import {createMario} from './entities.js';
+import { createBackgroundLayer, createSpriteLayer } from './layers.js';
+import Compositor from './Compositor.js';
 
 const canvas = document.getElementById('screen');
 const context = canvas.getContext('2d');
 
-loadImage('/img/tiles.png')
-  .then(image => {
-    const sprites = new SpriteSheet(image, 16, 16);
-    sprites.define('ground', 0, 0);
-    sprites.define('sky', 3, 23);
-    loadLevel('1-1')
-      .then(level => {
-        console.log(level);
-        drawBackground(level.backgrounds[0], context, sprites);
-      });
+
+
+Promise.all([
+  createMario(),
+  loadBackgroundSprites(),
+  loadLevel('1-1')
+])
+  .then(([mario, backgroundSprites, level]) => {
+
+    const comp = new Compositor();
+    const backgroundLayer = createBackgroundLayer(level.backgrounds, backgroundSprites);
+    comp.layers.push(backgroundLayer);
+
+    const gravity = 0.5;
+
+    const spriteLayer = createSpriteLayer(mario);
+    comp.layers.push(spriteLayer);
+
+    function update() {
+      comp.draw(context);
+      mario.update();
+      mario.vel.y += gravity;
+      requestAnimationFrame(update);
+    }
+
+    update();
+
   });
